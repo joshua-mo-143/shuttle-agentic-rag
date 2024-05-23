@@ -43,7 +43,11 @@ async fn prompt(State(state): State<AppState>, Json(json): Json<Prompt>) -> impl
 
 #[shuttle_runtime::main]
 async fn main(
-    #[shuttle_qdrant::Qdrant] qdrant_client: QdrantClient,
+    #[shuttle_qdrant::Qdrant(
+        cloud_url = "{secrets.QDRANT_URL}",
+        api_key = "{secrets.QDRANT_API_TOKEN}"
+    )]
+    qdrant_client: QdrantClient,
     #[shuttle_runtime::Secrets] secrets: SecretStore,
 ) -> shuttle_axum::ShuttleAxum {
     secrets.into_iter().for_each(|x| {
