@@ -54,7 +54,7 @@ async fn main(
         set_var(x.0, x.1);
     });
 
-    let file = File::new("test.csv".into())?.parse();
+    let file = File::new("test.csv".into())?;
 
     let state = AppState {
         agent: MyAgent::new(qdrant_client),

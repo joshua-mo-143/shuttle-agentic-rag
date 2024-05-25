@@ -11,21 +11,17 @@ impl File {
     pub fn new(path: PathBuf) -> Result<Self> {
         let contents = std::fs::read_to_string(&path)?;
 
-        let path_as_str = format!("{}", path.display());
-        Ok(Self {
-            path: path_as_str,
-            contents,
-            rows: Vec::new(),
-        })
-    }
+        let path = format!("{}", path.display());
 
-    pub fn parse(mut self) -> Self {
-        self.rows = self
-            .contents
+        let rows = contents
             .lines()
             .map(|x| x.to_owned())
             .collect::<Vec<String>>();
 
-        self
+        Ok(Self {
+            path,
+            contents,
+            rows,
+        })
     }
 }

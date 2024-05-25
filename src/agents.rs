@@ -9,9 +9,11 @@ use async_openai::types::{
 use async_openai::Embeddings;
 use async_openai::{config::OpenAIConfig, Client as OpenAIClient};
 use qdrant_client::prelude::{Payload, PointStruct, QdrantClient};
+use qdrant_client::qdrant::vectors_config::Config;
 use qdrant_client::qdrant::{
     with_payload_selector::SelectorOptions, SearchPoints, WithPayloadSelector,
 };
+use qdrant_client::qdrant::{CreateCollection, Distance, VectorParams, VectorsConfig};
 
 use crate::files::File;
 
@@ -116,6 +118,27 @@ impl MyAgent {
                 .upsert_points(COLLECTION, None, points, None)
                 .await?;
         }
+        Ok(())
+    }
+
+    pub async fn create_collection(&self) -> Result<()> {
+        self.qdrant_client
+            .create_collection(&CreateCollection {
+                collection_name: COLLECTION.to_string(),
+                vectors_config: Some(VectorsConfig {
+                    config: Some(Config::Params(VectorParams {
+                        size: 1536,
+                        distance: Distance::Cosine.into(),
+                        hnsw_config: None,
+                        quantization_config: None,
+                        on_disk: None,
+                        ..Default::default()
+                    })),
+                }),
+                ..Default::default()
+            })
+            .await?;
+
         Ok(())
     }
 
