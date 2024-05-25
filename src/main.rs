@@ -1,13 +1,16 @@
 use std::env::set_var;
-
-use agents::MyAgent;
+use axum::{body::Body, middleware::{self, Next}, Json};
+use serde_json::json;
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{StatusCode, Request},
     response::IntoResponse,
     routing::{get, post},
-    Json, Router,
+    Router,
 };
+
+use agents::MyAgent;
+
 use qdrant_client::client::QdrantClient;
 use serde::Deserialize;
 
@@ -16,6 +19,17 @@ pub mod files;
 
 use files::File;
 use shuttle_runtime::SecretStore;
+
+
+
+// Middleware function to log requests
+async fn log_requests(req: Request<Body>, next: Next) -> impl IntoResponse {
+    println!("Handling {} {}", req.method(), req.uri());
+    let res = next.run(req).await;
+    println!("Response Status: {}", res.status());
+    res
+}
+
 
 async fn hello_world() -> &'static str {
     "Hello, world!"
@@ -33,10 +47,10 @@ pub struct AppState {
 
 async fn prompt(State(state): State<AppState>, Json(json): Json<Prompt>) -> impl IntoResponse {
     match state.agent.prompt(&json.prompt).await {
-        Ok(res) => (StatusCode::OK, res),
+        Ok(res) => (StatusCode::OK, Json(json!({"response": res}))),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {e}"),
+            Json(json!({"error": format!("Something went wrong: {e}")}))
         ),
     }
 }
@@ -53,8 +67,14 @@ async fn main(
     secrets.into_iter().for_each(|x| {
         set_var(x.0, x.1);
     });
-
-    let file = File::new("test.csv".into())?.parse();
+    
+    let file = match File::new("test.csv".into()) {
+        Ok(file) => file.parse(),
+        Err(e) => {
+            eprintln!("Failed to read file: {e}");
+            return Err(e.into());
+        },
+    };
 
     let state = AppState {
         agent: MyAgent::new(qdrant_client),
@@ -65,7 +85,9 @@ async fn main(
     let router = Router::new()
         .route("/", get(hello_world))
         .route("/prompt", post(prompt))
+        .layer(middleware::from_fn(log_requests))  // Adding the middleware here
         .with_state(state);
 
     Ok(router.into())
 }
+
